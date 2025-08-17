@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "174705748627",
+    "project_id": "libecity-app",
+    "storage_bucket": "libecity-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:174705748627:android:b8b95ac2b2c16033a3bb66",
+        "android_client_info": {
+          "package_name": "com.libecity.libecity_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDTdenblFQSs041dBRGriag_YNV8jgmInE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
