@@ -23,14 +23,17 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 // 認証操作を管理するクラス
 class AuthRepository {
   const AuthRepository(this._auth);
-  
+
   final FirebaseAuth _auth;
 
   // 現在のユーザーを取得
   User? get currentUser => _auth.currentUser;
 
   // メールとパスワードでログイン
-  Future<User?> signInWithEmailAndPassword(String email, String password) async {
+  Future<User?> signInWithEmailAndPassword(
+    String email,
+    String password,
+  ) async {
     try {
       final credential = await _auth.signInWithEmailAndPassword(
         email: email,
@@ -43,7 +46,10 @@ class AuthRepository {
   }
 
   // メールとパスワードで新規登録
-  Future<User?> createUserWithEmailAndPassword(String email, String password) async {
+  Future<User?> createUserWithEmailAndPassword(
+    String email,
+    String password,
+  ) async {
     try {
       final credential = await _auth.createUserWithEmailAndPassword(
         email: email,

@@ -9,21 +9,15 @@ import 'widgets/auth_wrapper.dart';
 void main() async {
   // Flutterの初期化を確実に行う
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Firebaseの初期化（認証やデータベースを使うために必要）
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-  
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
   // Hiveの初期化（ローカルストレージ用）
   await Hive.initFlutter();
-  
+
   // ProviderScopeで囲むことでRiverpodが使えるようになる
-  runApp(
-    const ProviderScope(
-      child: MyApp(),
-    ),
-  );
+  runApp(const ProviderScope(child: MyApp()));
 }
 
 // アプリ全体の設定を行うウィジェット

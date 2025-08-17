@@ -71,5 +71,4 @@ class DefaultFirebaseOptions {
     authDomain: 'libecity-app.firebaseapp.com',
     storageBucket: 'libecity-app.firebasestorage.app',
   );
-
 }

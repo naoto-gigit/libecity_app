@@ -8,7 +8,7 @@ class FirestoreService {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
 
   // メッセージコレクションへの参照
-  static CollectionReference get _messagesCollection => 
+  static CollectionReference get _messagesCollection =>
       _firestore.collection('messages');
 
   // メッセージを送信する

@@ -12,16 +12,13 @@ class AuthWrapper extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // authStateProviderを監視（ここがポイント！）
     final authState = ref.watch(authStateProvider);
-    
+
     // authStateProvider が変わると自動でここが再実行される
     return authState.when(
       // データ読み込み中
-      loading: () => const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      ),
-      
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
+
       // エラー発生時
       error: (error, stackTrace) => Scaffold(
         body: Center(
@@ -43,7 +40,7 @@ class AuthWrapper extends ConsumerWidget {
           ),
         ),
       ),
-      
+
       // データ取得成功時
       data: (user) {
         if (user == null) {

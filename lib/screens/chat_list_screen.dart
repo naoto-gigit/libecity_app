@@ -16,6 +16,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   bool _isLoading = false;
+  DateTime? _lastMessageTime; // 連続投稿防止用
 
   @override
   void dispose() {
@@ -27,16 +28,40 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
   // メッセージを送信する関数
   Future<void> _sendMessage() async {
     final text = _messageController.text.trim();
-    if (text.isEmpty) return;
+
+    // 入力値検証
+    if (text.isEmpty) {
+      _showErrorSnackBar('メッセージを入力してください');
+      return;
+    }
+
+    // 文字数制限（Firestore Rulesと一致）
+    if (text.length > 1000) {
+      _showErrorSnackBar('メッセージは1000文字以内で入力してください');
+      return;
+    }
+
+    // 連続投稿の防止（3秒間隔）
+    if (_lastMessageTime != null) {
+      final timeDiff = DateTime.now().difference(_lastMessageTime!);
+      if (timeDiff.inSeconds < 3) {
+        _showErrorSnackBar('連続投稿はお控えください（${3 - timeDiff.inSeconds}秒後に再試行）');
+        return;
+      }
+    }
+
+    // 入力値のクリーニング
+    final sanitizedText = _sanitizeInput(text);
 
     setState(() {
       _isLoading = true;
     });
 
     try {
-      await FirestoreService.sendMessage(text);
+      await FirestoreService.sendMessage(sanitizedText);
       _messageController.clear();
-      
+      _lastMessageTime = DateTime.now(); // 送信時刻を記録
+
       // 新しいメッセージが送信されたら最下部にスクロール
       if (mounted) {
         Future.delayed(const Duration(milliseconds: 100), () {
@@ -45,9 +70,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('メッセージの送信に失敗しました: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('メッセージの送信に失敗しました: $e')));
       }
     } finally {
       if (mounted) {
@@ -66,6 +91,31 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOut,
       );
+    }
+  }
+
+  // 入力値の検証とクリーニング
+  String _sanitizeInput(String input) {
+    // 実際に必要な処理：
+    // 1. 改行の正規化（連続改行を制限）
+    String cleaned = input.replaceAll(RegExp(r'\n{3,}'), '\n\n');
+
+    // 2. 制御文字を除去（見えない文字でレイアウト崩れを防ぐ）
+    cleaned = cleaned.replaceAll(
+      RegExp(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]'),
+      '',
+    );
+
+    // 3. 前後の空白を削除
+    return cleaned.trim();
+  }
+
+  // エラーメッセージを表示
+  void _showErrorSnackBar(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     }
   }
 
@@ -98,15 +148,13 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                
+
                 if (snapshot.hasError) {
-                  return Center(
-                    child: Text('エラーが発生しました: ${snapshot.error}'),
-                  );
+                  return Center(child: Text('エラーが発生しました: ${snapshot.error}'));
                 }
-                
+
                 final messages = snapshot.data ?? [];
-                
+
                 if (messages.isEmpty) {
                   return const Center(
                     child: Text('まだメッセージがありません\n最初のメッセージを送ってみましょう！'),
@@ -120,14 +168,14 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                   itemBuilder: (context, index) {
                     final message = messages[index];
                     final isMyMessage = message.senderId == currentUser?.uid;
-                    
+
                     return _buildMessageBubble(message, isMyMessage);
                   },
                 );
               },
             ),
           ),
-          
+
           // メッセージ入力欄
           Container(
             padding: const EdgeInsets.all(8),
@@ -140,6 +188,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                 Expanded(
                   child: TextField(
                     controller: _messageController,
+                    maxLength: 1000, // 文字数制限を明示
                     decoration: const InputDecoration(
                       hintText: 'メッセージを入力...',
                       border: OutlineInputBorder(),
@@ -147,6 +196,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                         horizontal: 12,
                         vertical: 8,
                       ),
+                      counterText: '', // 文字数カウンターを非表示
                     ),
                     onSubmitted: (_) => _sendMessage(),
                   ),

@@ -14,10 +14,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   // テキスト入力を管理するコントローラー
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  
+
   // ローディング中かどうかのフラグ
   bool _isLoading = false;
-  
+
   // ログインか新規登録かのモード切り替え
   bool _isLoginMode = true;
 
@@ -31,9 +31,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     // 入力チェック
     if (email.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('メールアドレスとパスワードを入力してください')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('メールアドレスとパスワードを入力してください')));
       return;
     }
 
@@ -55,7 +55,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           password: password,
         );
       }
-      
+
       // 成功したらチャット画面へ遷移（後で実装）
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -84,11 +84,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         default:
           message = 'エラーが発生しました: ${e.message}';
       }
-      
+
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
       }
     } finally {
       if (mounted) {
@@ -117,18 +117,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               // アプリロゴやタイトル
-              const Icon(
-                Icons.chat,
-                size: 80,
-                color: Colors.blue,
-              ),
+              const Icon(Icons.chat, size: 80, color: Colors.blue),
               const SizedBox(height: 16),
               Text(
                 'Libecity Chat',
                 style: Theme.of(context).textTheme.headlineMedium,
               ),
               const SizedBox(height: 48),
-              
+
               // メールアドレス入力フィールド
               TextField(
                 controller: _emailController,
@@ -140,7 +136,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              
+
               // パスワード入力フィールド
               TextField(
                 controller: _passwordController,
@@ -152,7 +148,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 24),
-              
+
               // ログイン/新規登録ボタン
               SizedBox(
                 width: double.infinity,
@@ -169,7 +165,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              
+
               // モード切り替えボタン
               TextButton(
                 onPressed: _isLoading
@@ -180,9 +176,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         });
                       },
                 child: Text(
-                  _isLoginMode
-                      ? 'アカウントをお持ちでない方はこちら'
-                      : '既にアカウントをお持ちの方はこちら',
+                  _isLoginMode ? 'アカウントをお持ちでない方はこちら' : '既にアカウントをお持ちの方はこちら',
                 ),
               ),
             ],
