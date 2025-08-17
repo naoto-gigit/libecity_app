@@ -34,8 +34,8 @@ class AuthWrapper extends ConsumerWidget {
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () {
-                  // 再読み込み（戻り値は使用しないが警告を避けるため変数に代入）
-                  ref.refresh(authStateProvider);
+                  // 再読み込み（戻り値を適切に処理）
+                  ref.invalidate(authStateProvider);
                 },
                 child: const Text('再試行'),
               ),
