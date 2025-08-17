@@ -3,7 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'firebase_options.dart';
-import 'screens/login_screen.dart';
+import 'widgets/auth_wrapper.dart';
 
 // アプリのエントリーポイント
 void main() async {
@@ -39,8 +39,8 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         useMaterial3: true, // Material Design 3を使用
       ),
-      // 最初に表示される画面（ログイン画面）
-      home: const LoginScreen(),
+      // 認証状態に応じて自動で画面切り替え
+      home: const AuthWrapper(),
     );
   }
 }
