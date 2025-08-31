@@ -24,10 +24,16 @@ service cloud.firestore {
         && request.resource.data.text.size() <= 1000
         && request.resource.data.timestamp is timestamp;
       
-      // 更新：自分のメッセージのみ編集可能
-      allow update: if isAuthenticated() 
-        && isOwner(resource.data.senderId)
-        && request.resource.data.senderId == resource.data.senderId; // senderIdは変更不可
+      // 更新：既読機能のため、認証されたユーザーなら誰でも更新可能
+      // ただし、readByフィールドのみ更新可能
+      allow update: if isAuthenticated()
+        && (
+          // 既読の更新（自分のユーザーIDのみ更新可能）
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy']))
+          || 
+          // 自分のメッセージの編集
+          (isOwner(resource.data.senderId) && request.resource.data.senderId == resource.data.senderId)
+        );
       
       // 削除：自分のメッセージのみ削除可能
       allow delete: if isAuthenticated() 

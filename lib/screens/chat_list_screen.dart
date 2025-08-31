@@ -12,17 +12,41 @@ class ChatListScreen extends ConsumerStatefulWidget {
   ConsumerState<ChatListScreen> createState() => _ChatListScreenState();
 }
 
-class _ChatListScreenState extends ConsumerState<ChatListScreen> {
+class _ChatListScreenState extends ConsumerState<ChatListScreen> with WidgetsBindingObserver {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   bool _isLoading = false;
   DateTime? _lastMessageTime; // 連続投稿防止用
+  List<Message> _currentMessages = []; // 現在表示中のメッセージ
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // アプリがフォアグラウンドに戻ったときに既読を更新
+    if (state == AppLifecycleState.resumed) {
+      _markMessagesAsRead();
+    }
+  }
+
+  // 未読メッセージを既読にする
+  Future<void> _markMessagesAsRead() async {
+    if (_currentMessages.isEmpty) return;
+    
+    // 全自動版メソッドを使用（Service側で未読チェックから更新まで全部やってくれる）
+    await FirestoreService.markMessagesAsRead(_currentMessages);
   }
 
   // メッセージを送信する関数
@@ -154,6 +178,12 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                 }
 
                 final messages = snapshot.data ?? [];
+                _currentMessages = messages; // 現在のメッセージを保存
+                
+                // 新しいメッセージがあれば自動的に既読にする
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _markMessagesAsRead();
+                });
 
                 if (messages.isEmpty) {
                   return const Center(
@@ -226,6 +256,20 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
 
   // メッセージバブルを作成する関数
   Widget _buildMessageBubble(Message message, bool isMyMessage) {
+    final currentUserId = ref.read(authRepositoryProvider).currentUser?.uid;
+    
+    // 既読状態を判定
+    bool showReadStatus = false;
+    int readCount = 0;
+    
+    if (isMyMessage && currentUserId != null) {
+      // 自分のメッセージの場合、他のユーザーが読んだかチェック
+      readCount = message.readBy.entries
+          .where((entry) => entry.key != currentUserId)
+          .length;
+      showReadStatus = readCount > 0;
+    }
+    
     return Align(
       alignment: isMyMessage ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
@@ -259,12 +303,35 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
               ),
             ),
             const SizedBox(height: 4),
-            Text(
-              '${message.timestamp.hour}:${message.timestamp.minute.toString().padLeft(2, '0')}',
-              style: TextStyle(
-                fontSize: 10,
-                color: isMyMessage ? Colors.white70 : Colors.black54,
-              ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '${message.timestamp.hour}:${message.timestamp.minute.toString().padLeft(2, '0')}',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: isMyMessage ? Colors.white70 : Colors.black54,
+                  ),
+                ),
+                if (showReadStatus) ...[
+                  const SizedBox(width: 8),
+                  Icon(
+                    Icons.done_all,
+                    size: 14,
+                    color: isMyMessage ? Colors.white70 : Colors.black54,
+                  ),
+                  if (readCount > 1) ...[
+                    const SizedBox(width: 4),
+                    Text(
+                      '$readCount',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: isMyMessage ? Colors.white70 : Colors.black54,
+                      ),
+                    ),
+                  ],
+                ],
+              ],
             ),
           ],
         ),
