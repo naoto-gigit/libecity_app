@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import '../providers/auth_provider.dart';
 import '../models/message.dart';
 import '../services/firestore_service.dart';
+import '../services/storage_service.dart';
 
 // チャット画面（メッセージのやり取りができる画面）
 class ChatListScreen extends ConsumerStatefulWidget {
@@ -15,7 +17,10 @@ class ChatListScreen extends ConsumerStatefulWidget {
 class _ChatListScreenState extends ConsumerState<ChatListScreen> with WidgetsBindingObserver {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final ImagePicker _imagePicker = ImagePicker();
   bool _isLoading = false;
+  bool _isUploadingImage = false;
+  double _uploadProgress = 0.0;
   DateTime? _lastMessageTime; // 連続投稿防止用
   List<Message> _currentMessages = []; // 現在表示中のメッセージ
 
@@ -143,6 +148,121 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> with WidgetsBin
     }
   }
 
+  // フルサイズ画像を表示
+  void _showFullSizeImage(String imageUrl) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.all(10),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              // 背景をタップで閉じる
+              GestureDetector(
+                onTap: () => Navigator.of(context).pop(),
+                child: Container(color: Colors.black54),
+              ),
+              // 画像表示
+              InteractiveViewer(
+                minScale: 0.5,
+                maxScale: 4.0,
+                child: Image.network(
+                  imageUrl,
+                  fit: BoxFit.contain,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Center(
+                      child: CircularProgressIndicator(
+                        value: loadingProgress.expectedTotalBytes != null
+                            ? loadingProgress.cumulativeBytesLoaded /
+                                loadingProgress.expectedTotalBytes!
+                            : null,
+                        valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              // 閉じるボタン
+              Positioned(
+                top: 40,
+                right: 20,
+                child: IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white, size: 30),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // 画像を選択して送信する
+  Future<void> _pickAndSendImage() async {
+    try {
+      // ギャラリーから画像を選択
+      final XFile? pickedFile = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1920,  // 最大幅を制限
+        imageQuality: 85, // 画質を調整
+      );
+
+      if (pickedFile == null) {
+        return; // キャンセルされた場合
+      }
+
+      setState(() {
+        _isUploadingImage = true;
+        _uploadProgress = 0.0;
+      });
+
+      // 画像をアップロード（進捗付き）
+      final Map<String, String> urls = await StorageService.uploadImageWithProgress(
+        pickedFile,
+        (progress) {
+          if (mounted) {
+            setState(() {
+              _uploadProgress = progress;
+            });
+          }
+        },
+      );
+
+      // メッセージとして送信
+      final text = _messageController.text.trim();
+      await FirestoreService.sendImageMessage(
+        text: text.isNotEmpty ? text : null,
+        imageUrl: urls['imageUrl']!,
+        thumbnailUrl: urls['thumbnailUrl']!,
+      );
+
+      // テキストフィールドをクリア
+      if (text.isNotEmpty) {
+        _messageController.clear();
+      }
+
+      // 送信後に最下部にスクロール
+      if (mounted) {
+        Future.delayed(const Duration(milliseconds: 100), () {
+          _scrollToBottom();
+        });
+      }
+    } catch (e) {
+      _showErrorSnackBar('画像の送信に失敗しました: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUploadingImage = false;
+          _uploadProgress = 0.0;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final authRepo = ref.read(authRepositoryProvider);
@@ -213,39 +333,57 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> with WidgetsBin
               color: Colors.grey[100],
               border: Border(top: BorderSide(color: Colors.grey[300]!)),
             ),
-            child: Row(
+            child: Column(
               children: [
-                Expanded(
-                  child: TextField(
-                    controller: _messageController,
-                    maxLength: 1000, // 文字数制限を明示
-                    decoration: const InputDecoration(
-                      hintText: 'メッセージを入力...',
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      counterText: '', // 文字数カウンターを非表示
-                    ),
-                    onSubmitted: (_) => _sendMessage(),
+                // アップロード進捗バー
+                if (_isUploadingImage)
+                  LinearProgressIndicator(
+                    value: _uploadProgress,
+                    backgroundColor: Colors.grey[300],
+                    valueColor: const AlwaysStoppedAnimation<Color>(Colors.blue),
                   ),
-                ),
-                const SizedBox(width: 8),
-                _isLoading
-                    ? const SizedBox(
-                        width: 40,
-                        height: 40,
-                        child: Padding(
-                          padding: EdgeInsets.all(8),
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                Row(
+                  children: [
+                    // 画像選択ボタン
+                    IconButton(
+                      onPressed: _isUploadingImage ? null : _pickAndSendImage,
+                      icon: const Icon(Icons.photo),
+                      color: Colors.blue,
+                    ),
+                    Expanded(
+                      child: TextField(
+                        controller: _messageController,
+                        maxLength: 1000, // 文字数制限を明示
+                        decoration: const InputDecoration(
+                          hintText: 'メッセージを入力...',
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          counterText: '', // 文字数カウンターを非表示
                         ),
-                      )
-                    : IconButton(
-                        onPressed: _sendMessage,
-                        icon: const Icon(Icons.send),
-                        color: Colors.blue,
+                        onSubmitted: (_) => _sendMessage(),
+                        enabled: !_isUploadingImage, // アップロード中は無効化
                       ),
+                    ),
+                    const SizedBox(width: 8),
+                    _isLoading || _isUploadingImage
+                        ? const SizedBox(
+                            width: 40,
+                            height: 40,
+                            child: Padding(
+                              padding: EdgeInsets.all(8),
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          )
+                        : IconButton(
+                            onPressed: _sendMessage,
+                            icon: const Icon(Icons.send),
+                            color: Colors.blue,
+                          ),
+                  ],
+                ),
               ],
             ),
           ),
@@ -296,12 +434,55 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> with WidgetsBin
               ),
               const SizedBox(height: 4),
             ],
-            Text(
-              message.text,
-              style: TextStyle(
-                color: isMyMessage ? Colors.white : Colors.black87,
+            // 画像がある場合は表示
+            if (message.thumbnailUrl != null) ...[
+              GestureDetector(
+                onTap: () {
+                  // フルサイズ画像を表示
+                  _showFullSizeImage(message.imageUrl ?? message.thumbnailUrl!);
+                },
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.network(
+                    message.thumbnailUrl!,
+                    fit: BoxFit.cover,
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Container(
+                        width: 200,
+                        height: 200,
+                        color: Colors.grey[200],
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            value: loadingProgress.expectedTotalBytes != null
+                                ? loadingProgress.cumulativeBytesLoaded /
+                                    loadingProgress.expectedTotalBytes!
+                                : null,
+                          ),
+                        ),
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        width: 200,
+                        height: 200,
+                        color: Colors.grey[200],
+                        child: const Icon(Icons.error, color: Colors.red),
+                      );
+                    },
+                  ),
+                ),
               ),
-            ),
+              if (message.text.isNotEmpty) const SizedBox(height: 8),
+            ],
+            // テキストがある場合のみ表示
+            if (message.text.isNotEmpty)
+              Text(
+                message.text,
+                style: TextStyle(
+                  color: isMyMessage ? Colors.white : Colors.black87,
+                ),
+              ),
             const SizedBox(height: 4),
             Row(
               mainAxisSize: MainAxisSize.min,

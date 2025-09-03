@@ -24,12 +24,50 @@ class FirestoreService {
       senderId: user.uid,
       senderEmail: user.email ?? '',
       timestamp: DateTime.now(),
+      type: MessageType.text,
     );
 
     try {
       await _messagesCollection.add(message.toFirestore());
     } catch (e) {
       throw Exception('メッセージの送信に失敗しました: $e');
+    }
+  }
+
+  // 画像付きメッセージを送信する
+  static Future<void> sendImageMessage({
+    String? text,
+    required String imageUrl,
+    required String thumbnailUrl,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw Exception('ログインが必要です');
+    }
+
+    // メッセージタイプを判定
+    MessageType messageType;
+    if (text != null && text.isNotEmpty) {
+      messageType = MessageType.mixed; // テキストと画像の両方
+    } else {
+      messageType = MessageType.image; // 画像のみ
+    }
+
+    final message = Message(
+      id: '',
+      text: text ?? '',
+      senderId: user.uid,
+      senderEmail: user.email ?? '',
+      timestamp: DateTime.now(),
+      imageUrl: imageUrl,
+      thumbnailUrl: thumbnailUrl,
+      type: messageType,
+    );
+
+    try {
+      await _messagesCollection.add(message.toFirestore());
+    } catch (e) {
+      throw Exception('画像メッセージの送信に失敗しました: $e');
     }
   }
 
@@ -83,7 +121,8 @@ class FirestoreService {
         'readBy.${user.uid}': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      print('既読の更新に失敗しました: $e');
+      // エラーログは本番環境では出力しない
+      // debugPrint('既読の更新に失敗しました: $e');
     }
   }
   
@@ -105,7 +144,8 @@ class FirestoreService {
     try {
       await batch.commit();
     } catch (e) {
-      print('既読の一括更新に失敗しました: $e');
+      // エラーログは本番環境では出力しない
+      // debugPrint('既読の一括更新に失敗しました: $e');
     }
   }
   

@@ -1,0 +1,17 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // 画像フォルダへのアクセスルール
+    match /images/messages/{userId}/{allPaths=**} {
+      // 認証済みユーザーのみアップロード可能
+      allow write: if request.auth != null 
+        && request.auth.uid == userId
+        && request.resource.size < 10 * 1024 * 1024  // 10MB制限
+        && request.resource.contentType.matches('image/.*');  // 画像のみ
+      
+      // 認証済みユーザーは全員読み取り可能
+      allow read: if request.auth != null;
+    }
+  }
+}

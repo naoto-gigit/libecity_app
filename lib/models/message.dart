@@ -1,5 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+// メッセージタイプの列挙型
+enum MessageType { text, image, mixed }
+
 // メッセージのデータモデル
 class Message {
   final String id;
@@ -8,6 +11,9 @@ class Message {
   final String senderEmail;
   final DateTime timestamp;
   final Map<String, DateTime> readBy;
+  final String? imageUrl;       // フルサイズ画像のURL
+  final String? thumbnailUrl;   // サムネイル画像のURL
+  final MessageType type;       // メッセージのタイプ
 
   const Message({
     required this.id,
@@ -16,6 +22,9 @@ class Message {
     required this.senderEmail,
     required this.timestamp,
     this.readBy = const {},
+    this.imageUrl,
+    this.thumbnailUrl,
+    this.type = MessageType.text,
   });
 
   // Firestoreのドキュメントから Message オブジェクトを作成
@@ -33,6 +42,22 @@ class Message {
       });
     }
     
+    // メッセージタイプを判定
+    MessageType messageType = MessageType.text;
+    if (data['type'] != null) {
+      messageType = MessageType.values.firstWhere(
+        (e) => e.toString().split('.').last == data['type'],
+        orElse: () => MessageType.text,
+      );
+    } else {
+      // 互換性のため、画像がある場合はタイプを自動判定
+      if (data['imageUrl'] != null && data['text'] != null && data['text'].isNotEmpty) {
+        messageType = MessageType.mixed;
+      } else if (data['imageUrl'] != null) {
+        messageType = MessageType.image;
+      }
+    }
+    
     return Message(
       id: doc.id,
       text: data['text'] ?? '',
@@ -40,6 +65,9 @@ class Message {
       senderEmail: data['senderEmail'] ?? '',
       timestamp: (data['timestamp'] as Timestamp).toDate(),
       readBy: readByMap,
+      imageUrl: data['imageUrl'],
+      thumbnailUrl: data['thumbnailUrl'],
+      type: messageType,
     );
   }
 
@@ -51,13 +79,24 @@ class Message {
       readByTimestamps[userId] = Timestamp.fromDate(dateTime);
     });
     
-    return {
+    final map = {
       'text': text,
       'senderId': senderId,
       'senderEmail': senderEmail,
       'timestamp': Timestamp.fromDate(timestamp),
       'readBy': readByTimestamps,
+      'type': type.toString().split('.').last,
     };
+    
+    // 画像URLがある場合のみ追加
+    if (imageUrl != null) {
+      map['imageUrl'] = imageUrl!;
+    }
+    if (thumbnailUrl != null) {
+      map['thumbnailUrl'] = thumbnailUrl!;
+    }
+    
+    return map;
   }
   
   // 特定のユーザーが既読したかチェック
