@@ -126,7 +126,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               const Icon(Icons.chat, size: 80, color: Colors.blue),
               const SizedBox(height: 16),
               Text(
-                'Libecity Chat',
+                'RealTime Chat',
                 style: Theme.of(context).textTheme.headlineMedium,
               ),
               const SizedBox(height: 48),

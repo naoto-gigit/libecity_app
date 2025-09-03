@@ -297,7 +297,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> with WidgetsBin
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Libecity Chat'),
+        title: const Text('RealTime Chat'),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
         actions: [

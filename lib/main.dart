@@ -27,7 +27,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Libecity Chat',
+      title: 'RealTime Chat',
       // アプリ全体のテーマ設定
       theme: ThemeData(
         primarySwatch: Colors.blue,

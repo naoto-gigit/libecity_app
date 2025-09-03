@@ -1,4 +1,4 @@
-# Libecity Chat
+# RealTime Chat
 
 リアルタイムチャットアプリケーション（Flutter + Firebase）
 
