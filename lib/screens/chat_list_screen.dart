@@ -7,7 +7,10 @@ import '../models/message.dart';
 import '../services/firestore_service.dart';
 import '../services/storage_service.dart';
 
-// チャット画面（メッセージのやり取りができる画面）
+/// メインチャット画面
+/// 
+/// View層。メッセージの表示、送信、画像アップロードを担当。
+/// WidgetsBindingObserverを使用してアプリのライフサイクルを監視。
 class ChatListScreen extends ConsumerStatefulWidget {
   const ChatListScreen({super.key});
 
@@ -22,7 +25,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> with WidgetsBin
   bool _isLoading = false;
   bool _isUploadingImage = false;
   double _uploadProgress = 0.0;
-  DateTime? _lastMessageTime; // 連続投稿防止用
+  DateTime? _lastMessageTime; // 連続投稿防止用（3秒間隔）
 
   @override
   void initState() {
@@ -57,7 +60,10 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> with WidgetsBin
     });
   }
 
-  // メッセージを送信する関数
+  /// テキストメッセージを送信
+  /// 
+  /// 入力値検証（文字数、連続投稿）を行い、
+  /// FirestoreServiceを呼び出して送信。
   Future<void> _sendMessage() async {
     final text = _messageController.text.trim();
 
@@ -204,7 +210,10 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> with WidgetsBin
     );
   }
 
-  // 画像を選択して送信する
+  /// 画像選択からアップロードまでの一連の処理
+  /// 
+  /// ImagePickerで選択 → StorageServiceでアップロード → 
+  /// FirestoreServiceでメッセージ送信のフロー。
   Future<void> _pickAndSendImage() async {
     try {
       // ギャラリーから画像を選択

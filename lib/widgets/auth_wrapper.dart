@@ -4,16 +4,21 @@ import '../providers/auth_provider.dart';
 import '../screens/login_screen.dart';
 import '../screens/chat_list_screen.dart';
 
-// 認証状態によって画面を自動切り替えするウィジェット
+/// 認証状態に応じた画面の自動切り替えウィジェット
+/// 
+/// View層のルートコンポーネント。
+/// authStateProviderを監視し、ログイン状態に応じて
+/// LoginScreenとChatListScreenを自動切り替え。
+/// これによりログイン/ログアウト時の画面遷移が自動化される。
 class AuthWrapper extends ConsumerWidget {
   const AuthWrapper({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // authStateProviderを監視（ここがポイント！）
+    // 認証状態をStreamProviderで監視
     final authState = ref.watch(authStateProvider);
 
-    // authStateProvider が変わると自動でここが再実行される
+    // StreamProviderの3つの状態（loading, error, data）に対応
     return authState.when(
       // データ読み込み中
       loading: () =>

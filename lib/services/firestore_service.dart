@@ -2,16 +2,22 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/message.dart';
 
-// Firestoreとのやり取りを管理するサービス
+/// Firestoreデータベースとの通信を管理するサービスクラス
+/// 
+/// ViewModel層の一部として、メッセージの送受信や既読管理などの
+/// ビジネスロジックを実装。全てstaticメソッドで構成されている。
 class FirestoreService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   static final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  // メッセージコレクションへの参照
+  /// メッセージコレクションへの参照を取得
   static CollectionReference get _messagesCollection =>
       _firestore.collection('messages');
 
-  // メッセージを送信する
+  /// テキストメッセージを送信
+  /// 
+  /// 認証済みユーザーのみ送信可能。メッセージにはユーザー情報と
+  /// タイムスタンプが自動的に付与される。
   static Future<void> sendMessage(String text) async {
     final user = _auth.currentUser;
     if (user == null) {
@@ -34,7 +40,10 @@ class FirestoreService {
     }
   }
 
-  // 画像付きメッセージを送信する
+  /// 画像付きメッセージを送信
+  /// 
+  /// 画像URLは必須、テキストはオプション。
+  /// テキストの有無によってメッセージタイプが自動判定される。
   static Future<void> sendImageMessage({
     String? text,
     required String imageUrl,
@@ -71,20 +80,26 @@ class FirestoreService {
     }
   }
 
-  // メッセージ一覧をリアルタイムで取得する Stream
+  /// 全メッセージをリアルタイムで取得
+  /// 
+  /// Firestoreのsnapshots()を使用してリアルタイム更新を実現。
+  /// メッセージは古い順にソートされる。
   static Stream<List<Message>> getMessages() {
     return _messagesCollection
         .orderBy('timestamp', descending: false) // 古い順にソート
         .snapshots() // リアルタイム監視
         .map((snapshot) {
-          // Firestore の DocumentSnapshot を Message オブジェクトに変換
+          // FirestoreのDocumentSnapshotをMessageオブジェクトに変換
           return snapshot.docs.map((doc) {
             return Message.fromFirestore(doc);
           }).toList();
         });
   }
 
-  // 最新のメッセージ N 件を取得
+  /// 最新メッセージを指定件数取得（デフォルト50件）
+  /// 
+  /// パフォーマンス向上のため件数制限をつけて取得。
+  /// 取得後に表示用として古い順に並び替えて返す。
   static Stream<List<Message>> getRecentMessages({int limit = 50}) {
     return _messagesCollection
         .orderBy('timestamp', descending: true) // 新しい順
@@ -99,7 +114,10 @@ class FirestoreService {
         });
   }
   
-  // メッセージを既読にする（既読済みなら何もしない）
+  /// 単一メッセージを既読にする
+  /// 
+  /// 既読済みの場合は無駄な更新を避けるためスキップ。
+  /// readByフィールドにユーザーIDとサーバータイムスタンプを記録。
   static Future<void> markAsRead(String messageId) async {
     final user = _auth.currentUser;
     if (user == null) return;
@@ -126,7 +144,10 @@ class FirestoreService {
     }
   }
   
-  // 複数のメッセージを一括で既読にする
+  /// 複数メッセージを一括で既読にする
+  /// 
+  /// Firestoreのバッチ処理を使用してパフォーマンスを最適化。
+  /// 一度のネットワークリクエストで全ての更新を実行。
   static Future<void> markMultipleAsRead(List<String> messageIds) async {
     final user = _auth.currentUser;
     if (user == null || messageIds.isEmpty) return;
@@ -149,7 +170,10 @@ class FirestoreService {
     }
   }
   
-  // 未読メッセージのIDリストを取得
+  /// 未読メッセージのIDリストを取得
+  /// 
+  /// 現在のユーザーがまだ読んでいないメッセージのIDを抽出。
+  /// 自分が送信したメッセージは除外される。
   static List<String> getUnreadMessageIds(List<Message> messages) {
     final user = _auth.currentUser;
     if (user == null) return [];
@@ -162,7 +186,10 @@ class FirestoreService {
         .toList();
   }
   
-  // メッセージリストを渡して自動で未読のみ既読にする（全自動版）
+  /// メッセージリストから未読を自動判定して既読化
+  /// 
+  /// View層から呼び出される便利メソッド。
+  /// 内部でgetUnreadMessageIdsとmarkMultipleAsReadを組み合わせて使用。
   static Future<void> markMessagesAsRead(List<Message> messages) async {
     if (messages.isEmpty) return;
     

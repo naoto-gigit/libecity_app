@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-// ログイン画面のウィジェット
+/// ログイン/新規登録画面
+/// 
+/// View層。メール/パスワード認証のUIを提供。
+/// エラーメッセージは日本語化済み。
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
@@ -24,7 +27,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   // Firebase Authのインスタンス
   final _auth = FirebaseAuth.instance;
 
-  // ログインまたは新規登録を実行する関数
+  /// ログイン/新規登録処理を実行
+  /// 
+  /// モード（_isLoginMode）に応じて処理を切り替え。
+  /// FirebaseAuthExceptionは日本語エラーメッセージに変換。
   Future<void> _submit() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();

@@ -1,35 +1,48 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-// Firebase Authのインスタンスを提供するProvider
+/// Firebase Authインスタンスを提供するProvider
+/// 
+/// アプリ全体で共有されるFirebaseAuthのシングルトン。
 final firebaseAuthProvider = Provider<FirebaseAuth>((ref) {
   return FirebaseAuth.instance;
 });
 
-// 現在のユーザー情報を監視するProvider
-// ここがポイント！authStateChanges()をStreamで監視
+/// 認証状態をリアルタイム監視するStreamProvider
+/// 
+/// authStateChanges()を監視して、ログイン/ログアウト時に
+/// 自動的にUIを更新。AuthWrapperで使用される。
 final authStateProvider = StreamProvider<User?>((ref) {
   final auth = ref.watch(firebaseAuthProvider);
   // Firebaseの認証状態変化を自動監視
   return auth.authStateChanges();
 });
 
-// 認証操作を提供するProvider
+/// 認証操作を提供するProvider
+/// 
+/// AuthRepositoryクラスのインスタンスを管理。
+/// View層からログイン/ログアウト操作を実行する際に使用。
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   final auth = ref.watch(firebaseAuthProvider);
   return AuthRepository(auth);
 });
 
-// 認証操作を管理するクラス
+/// 認証関連のビジネスロジックを管理するリポジトリクラス
+/// 
+/// Provider経由でアクセスされ、認証操作を抽象化。
+/// ViewModel層の一部として機能する。
 class AuthRepository {
   const AuthRepository(this._auth);
 
   final FirebaseAuth _auth;
 
-  // 現在のユーザーを取得
+  /// 現在ログイン中のユーザーを取得
   User? get currentUser => _auth.currentUser;
 
-  // メールとパスワードでログイン
+  /// メールとパスワードでログイン
+  /// 
+  /// FirebaseAuthExceptionが発生した場合はそのままスロー。
+  /// View層でエラーハンドリングを行う。
   Future<User?> signInWithEmailAndPassword(
     String email,
     String password,
@@ -45,7 +58,7 @@ class AuthRepository {
     }
   }
 
-  // メールとパスワードで新規登録
+  /// メールとパスワードで新規アカウント作成
   Future<User?> createUserWithEmailAndPassword(
     String email,
     String password,
@@ -61,7 +74,10 @@ class AuthRepository {
     }
   }
 
-  // ログアウト
+  /// ログアウト処理
+  /// 
+  /// authStateChanges()が自動的にnullを配信し、
+  /// UIがログイン画面に切り替わる。
   Future<void> signOut() async {
     await _auth.signOut();
   }
