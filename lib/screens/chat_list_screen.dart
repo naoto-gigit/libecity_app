@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import '../providers/auth_provider.dart';
+import '../providers/message_provider.dart';
 import '../models/message.dart';
 import '../services/firestore_service.dart';
 import '../services/storage_service.dart';
@@ -22,7 +23,6 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> with WidgetsBin
   bool _isUploadingImage = false;
   double _uploadProgress = 0.0;
   DateTime? _lastMessageTime; // 連続投稿防止用
-  List<Message> _currentMessages = []; // 現在表示中のメッセージ
 
   @override
   void initState() {
@@ -48,10 +48,13 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> with WidgetsBin
 
   // 未読メッセージを既読にする
   Future<void> _markMessagesAsRead() async {
-    if (_currentMessages.isEmpty) return;
+    final messagesAsync = ref.read(messagesProvider);
     
-    // 全自動版メソッドを使用（Service側で未読チェックから更新まで全部やってくれる）
-    await FirestoreService.markMessagesAsRead(_currentMessages);
+    messagesAsync.whenData((messages) async {
+      if (messages.isNotEmpty) {
+        await FirestoreService.markMessagesAsRead(messages);
+      }
+    });
   }
 
   // メッセージを送信する関数
@@ -286,20 +289,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> with WidgetsBin
         children: [
           // メッセージ一覧
           Expanded(
-            child: StreamBuilder<List<Message>>(
-              stream: FirestoreService.getRecentMessages(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                if (snapshot.hasError) {
-                  return Center(child: Text('エラーが発生しました: ${snapshot.error}'));
-                }
-
-                final messages = snapshot.data ?? [];
-                _currentMessages = messages; // 現在のメッセージを保存
-                
+            child: ref.watch(messagesProvider).when(
+              data: (messages) {
                 // 新しいメッセージがあれば自動的に既読にする
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   _markMessagesAsRead();
@@ -323,6 +314,10 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> with WidgetsBin
                   },
                 );
               },
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (error, stack) => Center(
+                child: Text('エラーが発生しました: $error'),
+              ),
             ),
           ),
 
