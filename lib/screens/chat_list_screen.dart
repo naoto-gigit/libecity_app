@@ -41,6 +41,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> with WidgetsBin
     super.dispose();
   }
 
+  /// アプリのライフサイクル監視
+  /// バックグラウンドから復帰時に既読処理を実行
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // アプリがフォアグラウンドに戻ったときに既読を更新
@@ -49,10 +51,13 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> with WidgetsBin
     }
   }
 
-  // 未読メッセージを既読にする
+  /// 未読メッセージを既読にする
+  /// Providerからメッセージを取得し、他人の未読のみバッチ処理
   Future<void> _markMessagesAsRead() async {
+    // ref.readで一回だけ取得（rebuildしない）
     final messagesAsync = ref.read(messagesProvider);
     
+    // データがあるときだけ既読処理
     messagesAsync.whenData((messages) async {
       if (messages.isNotEmpty) {
         await FirestoreService.markMessagesAsRead(messages);
@@ -121,7 +126,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> with WidgetsBin
     }
   }
 
-  // メッセージリストの最下部にスクロール
+  /// メッセージリストの最下部にスクロール
+  /// 新メッセージ送信後に自動スクロールでUX向上
   void _scrollToBottom() {
     if (_scrollController.hasClients) {
       _scrollController.animateTo(
@@ -132,9 +138,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> with WidgetsBin
     }
   }
 
-  // 入力値の検証とクリーニング
+  /// 入力値の検証とクリーニング
+  /// XSS対策とレイアウト崩れ防止のためのテキスト処理
   String _sanitizeInput(String input) {
-    // 実際に必要な処理：
     // 1. 改行の正規化（連続改行を制限）
     String cleaned = input.replaceAll(RegExp(r'\n{3,}'), '\n\n');
 
@@ -148,7 +154,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> with WidgetsBin
     return cleaned.trim();
   }
 
-  // エラーメッセージを表示
+  /// エラーメッセージをSnackBarで表示
+  /// mountedチェックで安全にUI更新
   void _showErrorSnackBar(String message) {
     if (mounted) {
       ScaffoldMessenger.of(
@@ -157,7 +164,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> with WidgetsBin
     }
   }
 
-  // フルサイズ画像を表示
+  /// フルサイズ画像をモーダルダイアログで表示
+  /// InteractiveViewerでピンチズームも対応
   void _showFullSizeImage(String imageUrl) {
     showDialog(
       context: context,
@@ -173,7 +181,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> with WidgetsBin
                 onTap: () => Navigator.of(context).pop(),
                 child: Container(color: Colors.black54),
               ),
-              // 画像表示
+              
+              // 画像表示（ピンチズーム可能）
               InteractiveViewer(
                 minScale: 0.5,
                 maxScale: 4.0,
@@ -216,7 +225,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> with WidgetsBin
   /// FirestoreServiceでメッセージ送信のフロー。
   Future<void> _pickAndSendImage() async {
     try {
-      // ギャラリーから画像を選択
+      // ImagePickerを使ってギャラリーから画像を選択
+      // maxWidthとimageQualityで事前に最適化
       final XFile? pickedFile = await _imagePicker.pickImage(
         source: ImageSource.gallery,
         maxWidth: 1920,  // 最大幅を制限
@@ -232,7 +242,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> with WidgetsBin
         _uploadProgress = 0.0;
       });
 
-      // 画像をアップロード（進捗付き）
+      // StorageServiceで画像をFirebase Storageにアップロード
+      // フルサイズとサムネイルの2種類が生成される
       final Map<String, String> urls = await StorageService.uploadImageWithProgress(
         pickedFile,
         (progress) {
@@ -244,7 +255,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> with WidgetsBin
         },
       );
 
-      // メッセージとして送信
+      // アップロード完了後、FirestoreにメッセージDocumentを作成
+      // imageUrlとthumbnailUrlを含むメッセージとして保存
       final text = _messageController.text.trim();
       await FirestoreService.sendImageMessage(
         text: text.isNotEmpty ? text : null,
@@ -252,12 +264,13 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> with WidgetsBin
         thumbnailUrl: urls['thumbnailUrl']!,
       );
 
-      // テキストフィールドをクリア
+      // 画像と一緒にテキストが送信された場合は入力欄をクリア
       if (text.isNotEmpty) {
         _messageController.clear();
       }
 
-      // 送信後に最下部にスクロール
+      // 新メッセージ送信後、自動的にチャット末尾へスクロール
+      // UX向上のため100ms遅延させて確実に表示を更新
       if (mounted) {
         Future.delayed(const Duration(milliseconds: 100), () {
           _scrollToBottom();
@@ -275,8 +288,10 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> with WidgetsBin
     }
   }
 
+  /// メインのbuildメソッド
   @override
   Widget build(BuildContext context) {
+    // 認証情報を取得（ref.readで一回だけ）
     final authRepo = ref.read(authRepositoryProvider);
     final currentUser = authRepo.currentUser;
 
@@ -296,11 +311,14 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> with WidgetsBin
       ),
       body: Column(
         children: [
-          // メッセージ一覧
+          // メッセージ一覧表示エリア（Expandedで残り領域全体を使用）
           Expanded(
+            // StreamProviderでメッセージをリアルタイム監視
+            // Firestoreの変更を自動検知してUIを再構築
             child: ref.watch(messagesProvider).when(
               data: (messages) {
-                // 新しいメッセージがあれば自動的に既読にする
+                // 画面描画完了後に既読処理を非同期で実行
+                // addPostFrameCallbackで描画を妨げない
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   _markMessagesAsRead();
                 });
@@ -311,6 +329,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> with WidgetsBin
                   );
                 }
 
+                // メッセージリストをListView.builderで効率的に表示
+                // 大量のメッセージでもパフォーマンスを維持
                 return ListView.builder(
                   controller: _scrollController,
                   padding: const EdgeInsets.all(8),
@@ -330,7 +350,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> with WidgetsBin
             ),
           ),
 
-          // メッセージ入力欄
+          // メッセージ入力エリア（下部固定）
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
@@ -339,25 +359,30 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> with WidgetsBin
             ),
             child: Column(
               children: [
-                // アップロード進捗バー
+                // 画像アップロード中の進捗バー表示
+                // LinearProgressIndicatorで0〜100%を視覚化
                 if (_isUploadingImage)
                   LinearProgressIndicator(
                     value: _uploadProgress,
                     backgroundColor: Colors.grey[300],
                     valueColor: const AlwaysStoppedAnimation<Color>(Colors.blue),
                   ),
+                // テキスト入力と送信ボタンを横並びに配置
                 Row(
                   children: [
-                    // 画像選択ボタン
+                    // 画像選択ボタン（アップロード中は無効化）
                     IconButton(
                       onPressed: _isUploadingImage ? null : _pickAndSendImage,
                       icon: const Icon(Icons.photo),
                       color: Colors.blue,
                     ),
+                    
+                    // テキスト入力フィールド（残り幅全体を使用）
+                    // 最大1000文字制限でFirestore Rulesと整合性確保
                     Expanded(
                       child: TextField(
                         controller: _messageController,
-                        maxLength: 1000, // 文字数制限を明示
+                        maxLength: 1000, // Firestore Rulesと一致
                         decoration: const InputDecoration(
                           hintText: 'メッセージを入力...',
                           border: OutlineInputBorder(),
@@ -365,13 +390,16 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> with WidgetsBin
                             horizontal: 12,
                             vertical: 8,
                           ),
-                          counterText: '', // 文字数カウンターを非表示
+                          counterText: '', // 文字数カウンター非表示
                         ),
                         onSubmitted: (_) => _sendMessage(),
                         enabled: !_isUploadingImage, // アップロード中は無効化
                       ),
                     ),
+                    
                     const SizedBox(width: 8),
+                    
+                    // 送信ボタン（処理中はProgressIndicator表示）
                     _isLoading || _isUploadingImage
                         ? const SizedBox(
                             width: 40,
@@ -396,16 +424,19 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> with WidgetsBin
     );
   }
 
-  // メッセージバブルを作成する関数
+  /// メッセージバブルUIを生成
+  /// 送信者に応じて色や位置を調整、既読表示も制御
   Widget _buildMessageBubble(Message message, bool isMyMessage) {
     final currentUserId = ref.read(authRepositoryProvider).currentUser?.uid;
     
-    // 既読状態を判定
+    // 既読状態を判定（自分が送信したメッセージのみ表示）
+    // 他ユーザーがreadByに含まれているかチェック
     bool showReadStatus = false;
     int readCount = 0;
     
     if (isMyMessage && currentUserId != null) {
-      // 自分のメッセージの場合、他のユーザーが読んだかチェック
+      // readByマップから自分以外のユーザー数をカウント
+      // 複数人が読んだ場合は人数も表示
       readCount = message.readBy.entries
           .where((entry) => entry.key != currentUserId)
           .length;
@@ -438,11 +469,14 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> with WidgetsBin
               ),
               const SizedBox(height: 4),
             ],
-            // 画像がある場合は表示
+            
+            // サムネイル画像表示部分
+            // タップするとフルサイズ画像をモーダルで表示
             if (message.thumbnailUrl != null) ...[
               GestureDetector(
                 onTap: () {
-                  // フルサイズ画像を表示
+                  // タップ時にフルサイズ画像モーダルを起動
+                  // InteractiveViewerでピンチズーム対応
                   _showFullSizeImage(message.imageUrl ?? message.thumbnailUrl!);
                 },
                 child: ClipRRect(
@@ -479,7 +513,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> with WidgetsBin
               ),
               if (message.text.isNotEmpty) const SizedBox(height: 8),
             ],
-            // テキストがある場合のみ表示
+            
+            // テキストメッセージ表示（画像のみの場合は非表示）
             if (message.text.isNotEmpty)
               Text(
                 message.text,
