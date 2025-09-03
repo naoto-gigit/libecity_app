@@ -1,0 +1,40 @@
+name: Flutter Test
+
+# プッシュとプルリクエストで自動実行
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    # リポジトリをチェックアウト
+    - uses: actions/checkout@v3
+    
+    # Flutter環境をセットアップ
+    - uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.35.1'  # プロジェクトのFlutterバージョンと合わせる
+        channel: 'stable'
+    
+    # 依存関係を取得
+    - name: Get dependencies
+      run: flutter pub get
+    
+    # テストを実行
+    - name: Run tests
+      run: flutter test
+    
+    # テストカバレッジを生成（オプション）
+    - name: Generate coverage report
+      run: flutter test --coverage
+      continue-on-error: true  # カバレッジは失敗しても続行
+    
+    # アナライザーを実行（コード品質チェック）
+    - name: Analyze code
+      run: flutter analyze
+      continue-on-error: true  # 警告があっても続行
