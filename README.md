@@ -62,41 +62,6 @@ FirebaseとFlutterを使用したリアルタイムチャットアプリです�
 Web版をすぐに試せます：  
 **https://libecity-app.firebaseapp.com**
 
-## 🧪 テスト
-
-### Unit Testの実行
-```bash
-flutter test
-```
-
-### コード品質チェック
-```bash
-flutter analyze
-```
-
-### CI/CD
-- GitHub Actionsによる自動テスト
-- mainブランチへのプッシュで自動実行
-
-## 📝 今後の実装予定
-
-- [ ] ローカルキャッシュ（Hive）
-- [ ] プッシュ通知
-- [ ] ユーザープロフィール機能
-- [ ] グループチャット
-- [ ] メッセージ検索
-
-## 🔒 セキュリティ
-
-- Firebase Security Rulesによるアクセス制御
-- 入力値検証とサニタイズ
-- 連続投稿防止機能
-- 認証必須のデータアクセス
-
-## 📄 ライセンス
-
-MIT License
-
 ## 👨‍💻 開発者
 
 [GitHub Profile](https://github.com/naoto-gigit)
