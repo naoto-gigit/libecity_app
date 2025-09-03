@@ -7,7 +7,7 @@
 FirebaseとFlutterを使用したリアルタイムチャットアプリです。  
 複数端末間でのリアルタイム同期、画像送信、既読機能などを実装しています。
 
-**デモサイト**: [https://libecity-app.firebaseapp.com](https://libecity-app.firebaseapp.com)
+**デモサイト**: [https://naoto-realtime-chat.web.app](https://naoto-realtime-chat.web.app)
 
 ## 📱 スクリーンショット
 
@@ -60,7 +60,7 @@ FirebaseとFlutterを使用したリアルタイムチャットアプリです�
 ## 🚀 デモサイト
 
 Web版をすぐに試せます：  
-**https://libecity-app.firebaseapp.com**
+**https://naoto-realtime-chat.web.app**
 
 ## 👨‍💻 開発者
 
